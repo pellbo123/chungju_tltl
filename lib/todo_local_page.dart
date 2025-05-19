@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,12 +13,12 @@ class TodoLocalPage extends StatefulWidget {
 class _TodoLocalPageState extends State<TodoLocalPage> {
 
   final TextEditingController _controller = TextEditingController();
-  final List<String> _todos = [];
+  final List<Map<String, dynamic>> _todos = [];
 
   @override
   void initState() {
     super.initState();
-    _LoadTodos();
+    _loadTodos();
   }
 
   void _addTodo() {
@@ -25,7 +27,7 @@ class _TodoLocalPageState extends State<TodoLocalPage> {
     final text = _controller.text.trim();
     if (text.isNotEmpty){
       setState(() {
-        _todos.add(text);
+        _todos.add({"text": text, "done": false});
         _controller.clear();
       });
       _saveTodos();
@@ -34,20 +36,30 @@ class _TodoLocalPageState extends State<TodoLocalPage> {
 
   Future<void> _saveTodos() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList("todos", _todos);
+    await prefs.setString("todos", jsonEncode(_todos));
   }
 
-  Future<void> _LoadTodos() async {
+  Future<void> _loadTodos() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedList = prefs.getStringList("todos") ?? [];
-    setState(() {
-      _todos.addAll(savedList);
-    });
+    final String? saved = prefs.getString("todos");
+    if (saved != null) {
+      final List decoded = jsonDecode(saved);
+      setState(() {
+        _todos.clear();
+        _todos.addAll(decoded.map((e) => Map<String, dynamic>.from(e)));
+      });
+    }
   }
 
+  void _toggleDone(int index, bool? value) {
+    setState(() {
+      _todos[index]['done'] = value ?? false;
+    });
+    _saveTodos();
+  }
 
   void _deleteTodo(int index){
-    final deleted = _todos[index];
+    final deleted = _todos[index]['text'];
     setState(() {
       _todos.removeAt(index);
     });
@@ -89,11 +101,30 @@ class _TodoLocalPageState extends State<TodoLocalPage> {
               ),
             ),
             Expanded(
-                child: ListView.builder(
+                child: _todos. isEmpty
+                    ? const Center(child: Text("할 일이 읎슴다"),)
+
+
+
+                    : ListView.builder(
                     itemCount: _todos.length,
                     itemBuilder: (context, index) {
+                      final todo = _todos[index];
                       return ListTile(
-                        title:  Text(_todos[index]),
+                        leading: Checkbox(
+                          value: todo['done'],
+                          onChanged: (value) => _toggleDone(index, value),
+                        ),
+
+                        title:  Text(
+                          todo['text'],
+                          style: TextStyle(
+                              decoration: todo ['done']
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                              color: todo['done'] ? Colors.grey : Colors.black
+                          ),
+                        ),
                         onLongPress: () => _deleteTodo(index),
                       );
                     }
