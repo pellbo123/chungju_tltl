@@ -22,35 +22,41 @@ class _TodoRemotePageState extends State<TodoRemotePage> {
     _loadTodos();
   }
 
-  void _addTodo(String text) async {
-    if (text.trim().isEmpty) return;
+  void _addTodo(String text) async{
+    final userId = Supabase.instance.client.auth.currentUser?.id;
 
-    await supabase.from('todos').insert({
+    if (text.trim().isEmpty) return;
+    await supabase.from("todos").insert({
       'text': text.trim(),
       'done': false,
+      'user_id':  userId
     });
-
     _controller.clear();
+    _loadTodos();
+
+  }
+  void _deleteTodo(int index) async{
+    final todo = _todos[index];
+    await supabase.from('todos').delete().eq('id', todo['id']);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("'${todo['text']}' 삭제됨"))
+    );
     _loadTodos();
   }
 
-  Future<void> _saveTodos() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("todos", jsonEncode(_todos));
-  }
-
   Future<void> _loadTodos() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
     final response = await supabase
         .from('todos')
         .select()
+        .eq("user_id", userId as Object)
         .order('id', ascending: false);
-
-
     setState(() {
       _todos = List<Map<String, dynamic>>.from(response);
     });
 
-    _loadTodos();
   }
 
   void _toggleDone(int index, bool? value) async{
@@ -58,29 +64,27 @@ class _TodoRemotePageState extends State<TodoRemotePage> {
     final updated = value ?? false;
 
     await supabase.from("todos")
-    .update({'done': updated})
-    .eq('id', todo['id']);
+        .update({'done': updated})
+        .eq('id', todo['id']);
 
     _loadTodos();
   }
-
-  void _deleteTodo(int index) async{
-    final todo = _todos[index];
-    await supabase.from('todos').delete().eq('id', todo['id']);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("'${todo['text']}'삭제됨"))
-    );
-    _loadTodos();
-
-  }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text("리모또 To-Do"),
+          title: const Text("나의 To-Do 앱"),
+          backgroundColor: Colors.indigo,
+          actions: [
+            IconButton(
+                onPressed: () async {
+                  await supabase.auth.signOut();
+                  Navigator.pushReplacementNamed(context, "/login");
+                },
+                icon: const Icon(Icons.logout)
+            )
+          ],
         ),
         body: Column(
           children: [
@@ -91,48 +95,67 @@ class _TodoRemotePageState extends State<TodoRemotePage> {
                   Expanded(
                       child: TextField(
                         controller: _controller,
-                        onSubmitted: (_) => _addTodo(_controller.text),
+                        onSubmitted: _addTodo,
                         decoration: InputDecoration(
-                            hintText: "할 일을 입력하세요.",
-                            border: OutlineInputBorder()
+                            hintText: "할 일을 입력하세요",
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            )
                         ),
                       )
                   ),
                   const SizedBox(width: 10),
-                  ElevatedButton(
-                      onPressed: () => _addTodo(_controller.text),
-                      child: const Text("추가")
+                  ElevatedButton.icon(
+                    onPressed: () => _addTodo(_controller.text),
+                    icon: const Icon(Icons.add),
+                    label: const Text("추가"),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14
+                        ),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)
+                        )
+                    ),
                   )
                 ],
               ),
             ),
             Expanded(
-                child: _todos. isEmpty
-                    ? const Center(child: Text("할 일이 읎슴다"),)
-
-
-
+                child: _todos.isEmpty
+                    ? const Center(child: Text("할 일이 없습니다."))
                     : ListView.builder(
                     itemCount: _todos.length,
                     itemBuilder: (context, index) {
                       final todo = _todos[index];
-                      return ListTile(
-                        leading: Checkbox(
-                          value: todo['done'],
-                          onChanged: (value) => _toggleDone(index, value),
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6
                         ),
-
-                        title:  Text(
-                          todo['text'],
-                          style: TextStyle(
-                              decoration: todo ['done']
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                              color: todo['done'] ? Colors.grey : Colors.black
+                        elevation: 2,
+                        child: ListTile(
+                          leading: Checkbox(
+                            value: todo['done'],
+                            onChanged: (value) => _toggleDone(index, value),
                           ),
+                          title: Text(
+                            todo['text'],
+                            style: TextStyle(
+                              fontSize: 18,
+                                decoration: todo['done']
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                color: todo['done'] ? Colors.grey : Colors.black
+                            ),
+                          ),
+                          onLongPress: () => _deleteTodo(index),
                         ),
-                        onLongPress: () => _deleteTodo(index),
                       );
+
                     }
                 )
             )

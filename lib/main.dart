@@ -1,6 +1,8 @@
 import 'package:chungju_tltl/home_page.dart';
 import 'package:chungju_tltl/login_page.dart';
+import 'package:chungju_tltl/main_tab_page.dart';
 import 'package:chungju_tltl/singnup_page.dart';
+import 'package:chungju_tltl/splash_page.dart';
 import 'package:chungju_tltl/todo_local_page.dart';
 import 'package:chungju_tltl/todo_remote_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -36,8 +38,12 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
+
+
+      
       routes: {
-        '/': (context) => const HomePage(),
+        '/': (context) => const SplashPage(),
+        '/main': (context) => const MainTabPage(),
         '/todo-local': (context) => const TodoLocalPage(),
         '/todo-remote': (context) => const TodoRemotePage(),
         '/login': (context) => const LoginPage(),
