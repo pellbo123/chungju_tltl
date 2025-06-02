@@ -53,7 +53,8 @@ class _ChatPageState extends State<ChatPage> {
       if (text.isNotEmpty && user != null) {
         await supabase.from("messages").insert({
           'user_id': user.id,
-          'content': text
+          'content': text,
+          'email': user.email
         });
         _controller.clear();
       }
@@ -73,8 +74,29 @@ class _ChatPageState extends State<ChatPage> {
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final msg = _messages[index];
+                  final userId = supabase.auth.currentUser?.id;
+                  final email = supabase.auth.currentUser?.email;
+                  final isMine = msg['user_id'] == userId;
+                  final senderText = isMine ? "나" : email.toString();
+
+
+
+
                   return ListTile(
-                    title: Text(msg['content'] ?? ''),
+                    title: Text(
+                        msg['content'] ?? '',
+                        textAlign: isMine ? TextAlign.end : TextAlign.start
+                  ),
+                    subtitle: Text(
+                      senderText,
+                      textAlign: isMine? TextAlign.end : TextAlign.start,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600]
+                      ),
+
+                    ),
+
                   );
                 }
               ),
